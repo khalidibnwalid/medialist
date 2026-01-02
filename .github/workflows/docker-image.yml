@@ -17,7 +17,7 @@ jobs:
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
+          username: ${{ vars.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       # Step 1: Calculate the tags automatically
@@ -25,7 +25,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ secrets.DOCKER_USERNAME }}/${{ github.event.repository.name }}
+          images: ${{ vars.DOCKER_USERNAME }}/${{ github.event.repository.name }}
           tags: |
             # Tag with git tag (e.g., 'v1.0.0') if you pushed one
             type=ref,event=tag

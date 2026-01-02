@@ -27,7 +27,7 @@
     "busboy": "^1.6.0",
     "drizzle-kit": "^0.31.4",
     "drizzle-orm": "^0.38.3",
-    "express": "^4.21.2",
+    "express": "^4.22.1",
     "framer-motion": "^12.4.7",
     "nanoid": "^5.0.7",
     "next": "^15.5.9",

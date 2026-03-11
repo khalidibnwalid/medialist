@@ -2,14 +2,16 @@ import { Spinner } from "@heroui/react";
 import { useTheme } from "next-themes";
 import { Poppins } from "next/font/google";
 import Head from "next/head";
+import { useRouter } from "next/router";
 import { useState } from "react";
 import {
+  BiArrowBack,
   BiCollection,
   BiLogOutCircle,
-  BiTrashAlt,
-  BiArrowBack,
+  BiTrashAlt
 } from "react-icons/bi";
 import { BsSun } from "react-icons/bs";
+import { PiBlueprint } from "react-icons/pi";
 import { RiMoonClearLine, RiUserLine } from "react-icons/ri";
 import { twJoin } from "tailwind-merge";
 import { useUser } from "../providers/AuthProvider";
@@ -18,7 +20,6 @@ import BaseNavButton, {
   BaseNavButtonProps,
 } from "../ui/bars/nav/BaseNavButtons";
 import RootFooter from "./RootFooter";
-import { useRouter } from "next/router";
 
 const poppins = Poppins({ weight: "400", subsets: ["latin"] });
 
@@ -42,7 +43,12 @@ export default function RootLayout({
           },
         ]
       : []),
-    { label: "Lists", link: "/", icon: <BiCollection key="nav-BiHomeAlt2" /> },
+    { label: "Lists", link: "/", icon: <BiCollection key="nav-Lists" /> },
+    {
+      label: "Templates",
+      link: "/templates",
+      icon: <PiBlueprint key="nav-Templates" />,
+    },
     {
       label: "Trash",
       link: "/trash",

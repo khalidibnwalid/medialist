@@ -2,10 +2,11 @@ import { and, eq, inArray } from "drizzle-orm";
 import { db } from "..";
 import { itemsTable } from "../schema";
 
-export const $getItems = async (userId: string, listId: string | null, trash: boolean = false) => {
+export const $getItems = async (userId: string, listId: string | null, trash: boolean = false, isTemplate: boolean = false) => {
     let rules = [
         eq(itemsTable.userId, userId),
-        eq(itemsTable.trash, trash)
+        eq(itemsTable.trash, trash),
+        eq(itemsTable.isTemplate, isTemplate)
     ]
     if (listId) rules.push(eq(itemsTable.listId, listId))
     return await db

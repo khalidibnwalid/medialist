@@ -50,19 +50,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                     data.listId = list.id
                     data.userId = user.id
 
-                    let newTagsData: { id: string }[] = []
+                    let newTagsData: TagData[] = []
                     // new tags
                     if (data?.tags && data.tags.length > 0) {
                         newTagsData = newTags(tags);
                         if (newTagsData.length > 0)
-                            await $createTags(newTagsData as TagData[]);
+                            await $createTags(newTagsData);
                     }
 
                     data.createdAt = new Date(Date.now())
                     data.updatedAt = new Date(Date.now())
 
                     let newMediaData: MediaData[] = []
-                    if (data.media) {
+                    if (data.media && data.media.length > 0) {
                         // we init it here, since we need mediaIDs for some fields
                         newMediaData = newMedia()
                         data.media = newMediaData
@@ -73,7 +73,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                     const [item] = await $createItems(data)
 
                     // should be created after the item, since it uses the item id as a foreign key
-                    if (data.media)
+                    if (data.media && data.media.length > 0)
                         newMediaData = await $createItemMedia(newMediaData)
 
                     res.status(201).json({

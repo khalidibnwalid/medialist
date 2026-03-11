@@ -25,7 +25,7 @@ export default function ItemFormGallery({
     rowIndex: number,
     colIndex: number
 }) {
-    const { list, media, activeTabFields, setActiveTabFields, item, itemForm } = useContext(ItemFormContext)
+    const { list, media, activeTabFields, setActiveTabFields, item, itemForm, isTemplate } = useContext(ItemFormContext)
     const { setValue } = itemForm
     const { remove, set, field } = useItemFormLayoutField<GalleryField>(rowIndex, colIndex, setActiveTabFields, activeTabFields)
     const { filter } = field
@@ -88,6 +88,7 @@ export default function ItemFormGallery({
                     setIsToggled={setShowAddForm}
                     onDragOver={() => setShowAddForm(true)}
                     isIconOnly
+                    isDisabled={isTemplate}
                 >
                     <BiImageAdd className="ml-1 text-xl" />
                 </ToggleButton>

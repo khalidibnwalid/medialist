@@ -91,7 +91,6 @@ export const itemsTable = sqliteTable("items", {
         .notNull()
         .references(() => usersTable.id, { onDelete: "cascade" }),
     listId: text("list_id")
-        .notNull()
         .references(() => listsTable.id, { onDelete: "cascade" }),
     title: text("title")
         .notNull(),
@@ -121,11 +120,19 @@ export const itemsTable = sqliteTable("items", {
     fav: integer("fav", { mode: "boolean" })
         .notNull()
         .default(false),
+    isTemplate: integer("is_template", { mode: "boolean" })
+        .notNull()
+        .default(false),
     // templates: text("templates").notNull().default("[]"), // JSON string
     // configs: text("templates").notNull().default("[]"), // JSON string
     // apis: text("templates").notNull().default("[]"), // JSON string
 }, (table) => [
-    index("items_user_trash_list_idx").on(table.userId, table.trash, table.listId),
+    index("items_active_user_list_idx")
+        .on(table.userId, table.listId)
+        .where(sql`trash = false AND is_template = false`),
+    index("items_user_template_idx")
+        .on(table.userId)
+        .where(sql`is_template = true`),
 ]);
 
 export const listsTagsTable = sqliteTable("lists_tags", {

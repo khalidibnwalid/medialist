@@ -37,7 +37,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
 
         if (req.method === 'POST') {
-            const { item: itemDir } = await $getDir(user.id, item.listId, item.id);
+            const { item: itemDir } = await $getDir(user.id, item.listId!, item.id);
 
             const bbConfig = {
                 headers: req.headers,

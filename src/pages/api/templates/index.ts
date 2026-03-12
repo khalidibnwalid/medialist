@@ -28,12 +28,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 description: body.description || null,
                 layout: body.layout || [],
                 header: body.header || {},
+                extractor: body.extractor || null,
                 isTemplate: true,
                 createdAt: new Date(),
                 updatedAt: new Date(),
             };
 
-            const [created] = await $createItems(newTemplate as any);
+            const [created] = await $createItems(newTemplate);
             return res.status(201).json(created);
         }
 

@@ -1,7 +1,7 @@
 export type ServerResponse = {
     message?: string;
     cause?: object | string
-} &( { errorCode: ServerErrorCodes } | {code: string})
+} & ({ errorCode: ServerErrorCodes } | { code: string })
 
 // Codes
 
@@ -21,6 +21,7 @@ export enum ApiErrorCode {
     INTERNAL_SERVER_ERROR = "INTERNAL_SERVER_ERROR",
     METHOD_NOT_ALLOWED = "METHOD_NOT_ALLOWED",
     SIGNUP_DISABLED = "SIGNUP_DISABLED",
+    EXTERNAL_API_ERROR = "EXTERNAL_API_ERROR",
 }
 
 export enum UserErrorCode {

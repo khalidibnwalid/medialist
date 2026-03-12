@@ -19,6 +19,7 @@ const $ITEM_FORM_SCHEMA = (dir: string) => ({
   tags: 'JSON',
   layout: "JSON",
   media: "JSON",
+  extractor: "JSON",
   trash: "Boolean",
   fav: "Boolean",
   posterPath: {

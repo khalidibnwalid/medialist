@@ -34,17 +34,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             return res.status(200).json(item);
 
         if (req.method === 'PATCH') {
-            const tags = await $getTags(user.id, item.listId)
+            const tags = await $getTags(user.id, item.listId!)
 
-            const form = await $parseItemForm(user.id, item.listId, item.id, req,
+            const form = await $parseItemForm(user.id, item.listId!, item.id, req,
                 async (data, _, dir, mapLayouts, newMedia, newTags) => {
-                    let newTagsData: { id: string }[] = []
-
+                    let newTagsData: TagData[] = []
                     // new tags
                     if (data?.tags && data.tags.length > 0) {
-                        newTagsData = newTags(tags);
-                        if (newTagsData.length > 0)
-                            await $createTags(newTagsData as TagData[]);
+                        const tagsToCreate = newTags(tags);
+                        if (tagsToCreate.length > 0)
+                            newTagsData = await $createTags(tagsToCreate as any) as TagData[];
                     }
 
                     if (data.coverPath !== undefined && item.coverPath && item.coverPath !== data.coverPath)

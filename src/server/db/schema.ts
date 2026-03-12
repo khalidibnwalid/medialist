@@ -1,5 +1,5 @@
 import { TagData } from "@/utils/types/global";
-import { ItemHeader, ItemLayoutTab } from "@/utils/types/item";
+import { ItemHeader, ItemLayoutTab, ExtractorConfig } from "@/utils/types/item";
 import { ListData } from "@/utils/types/list";
 import { MediaData } from "@/utils/types/media";
 import { InferSelectModel, sql } from "drizzle-orm";
@@ -109,6 +109,8 @@ export const itemsTable = sqliteTable("items", {
     header: text("header_json", { mode: "json" })
         .default({})
         .$type<ItemHeader>(),
+    extractor: text("extractor_json", { mode: "json" })
+        .$type<ExtractorConfig>(),
     createdAt: integer("created_at", {
         mode: "timestamp"
     }).notNull()

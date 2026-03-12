@@ -92,11 +92,12 @@ function EmptyScreen({ router }: any) {
             Create your first item layout template!
           </p>
           <Button
-            color="primary"
+            className="bg-accented"
             onPress={() => router.push("/templates/add")}
+            title="Create Template"
             size="lg"
           >
-            Create Template
+            +
           </Button>
         </article>
       </section>

@@ -15,6 +15,7 @@ export interface ItemData {
     tags: TagData['id'][]
     layout: ItemLayoutTab[]
     header: ItemHeader
+    extractor?: ExtractorConfig
     createdAt: Date
     updatedAt: Date
     // badges?: itemBadgesType[]
@@ -62,6 +63,26 @@ export interface ItemTextField { type: "text", variant: "long" | "short", text: 
 export interface ItemLabelTextField { type: "labelText", label: string, body: string, countable?: boolean }
 export interface ItemLinkField extends LogoField { type: "link", url: string }
 export interface ItemRatingField { type: "rating", rating: number, from: number }
+
+export interface ExtractorMapping {
+    path: string
+    prefix?: string
+    suffix?: string
+}
+
+export interface ExtractorConfig {
+    link: string
+    type: "REST"
+    method: "GET" | "POST"
+    params: ExtractorParam[]
+    mappings: Record<string, string | ExtractorMapping> // targetFieldPath -> responseJSONPath or MappingConfig
+}
+
+export interface ExtractorParam {
+    key: string
+    location: "query" | "body"
+    value?: string // used during extraction flow, not stored in template config
+}
 
 /** Item Patch & POST response */
 export interface ItemSaveResponse {

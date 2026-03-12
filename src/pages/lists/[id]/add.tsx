@@ -1,3 +1,4 @@
+import ExtractorParamsModal from "@/components/forms/item/ExtractorParamsModal";
 import ItemFormHeaderSection from "@/components/forms/item/ItemFormHeaderSection";
 import ItemFormHeaderTitleBar from "@/components/forms/item/ItemFormHeaderTitleBar";
 import ItemFormLayoutSection from "@/components/forms/item/ItemFormLayoutSection";
@@ -9,6 +10,7 @@ import ItemFormProvider, {
   ItemFormLogoField,
 } from "@/components/forms/item/ItemFormProvider";
 import ItemFormLayoutTitleBar from "@/components/forms/item/layoutTitleBar/ItemFormLayoutTitleBar";
+import TemplatePickerModal from "@/components/forms/item/TemplatePickerModal";
 import ErrorPage from "@/components/layouts/ErrorPage";
 import ListsLoading from "@/components/layouts/loading/ListsLoading";
 import StatusSubmitButton from "@/components/ui/buttons/StatusSubmitButton";
@@ -23,25 +25,24 @@ import {
 } from "@/utils/lib/tanquery/tagsQuery";
 import { templatesQueryOptions } from "@/utils/lib/tanquery/templatesQuery";
 import { errorToast, simpleToast } from "@/utils/toast";
-import { ItemData, ItemSaveResponse } from "@/utils/types/item";
-import { ListData } from "@/utils/types/list";
 import {
-  addToast,
-  Button,
-  Card,
-  Input,
-  Modal,
-  ModalBody,
-  ModalContent,
-  ModalHeader,
-  useDisclosure,
-} from "@heroui/react";
+  ItemCardField,
+  ItemData,
+  ItemField,
+  ItemLabelTextField,
+  ItemLinkField,
+  ItemRatingField,
+  ItemSaveResponse,
+  ItemTextField,
+} from "@/utils/types/item";
+import { ListData } from "@/utils/types/list";
+import { addToast, Button, useDisclosure } from "@heroui/react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import Head from "next/head";
 import { useRouter } from "next/router";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { BiCheckDouble, BiRevision, BiSearch } from "react-icons/bi";
+import { BiCheckDouble, BiRevision } from "react-icons/bi";
 import { FaSave } from "react-icons/fa";
 import { PiBlueprint } from "react-icons/pi";
 
@@ -85,6 +86,246 @@ function AddItemPage() {
     [{ type: "left_sidebar", label: "Main" }, [{ id: "1", type: "tags" }], []],
   ]);
   const [activeTabIndex, setActiveTabIndex] = useState(0);
+
+  const {
+    isOpen: isTemplatePickerOpen,
+    onOpen: onTemplatePickerOpen,
+    onClose: onTemplatePickerClose,
+    onOpenChange: onTemplatePickerOpenChange,
+  } = useDisclosure();
+
+  const {
+    isOpen: isExtractorParamsOpen,
+    onOpen: onExtractorParamsOpen,
+    onClose: onExtractorParamsClose,
+    onOpenChange: onExtractorParamsOpenChange,
+  } = useDisclosure();
+
+  const [selectedTemplate, setSelectedTemplate] = useState<ItemData | null>(
+    null,
+  );
+  const [isExtracting, setIsExtracting] = useState(false);
+
+  function applyTemplate(
+    t: ItemData,
+    resolvedData: Record<string, string | File> = {},
+  ) {
+    const currentValues = itemForm.getValues();
+
+    const header = { ...t.header };
+    if (header.badges) {
+      header.badges = header.badges.map((badge, idx) => {
+        const val = resolvedData[`header.badges.${idx}`];
+        if (val !== undefined) return { ...badge, label: String(val) };
+        return badge;
+      });
+    }
+
+    itemForm.reset({
+      ...currentValues,
+      title: (resolvedData.title as string) || t.title,
+      description: (resolvedData.description as string) || t.description || "",
+      header: header,
+      poster: resolvedData.poster || currentValues.poster,
+      cover: resolvedData.cover || currentValues.cover,
+    });
+
+    // Ensure layout fields have unique IDs for dnd-kit
+    let idGen = 100;
+    const layout = t.layout.map((tab, tabIndex) =>
+      tab.map((column, colIndex) =>
+        colIndex !== 0
+          ? (column as ItemField[]).map((field, fieldIndex) => {
+              const fieldKey = `layout.${tabIndex}.${colIndex}.${fieldIndex}`;
+              const baseField: ItemField & { id?: string } = {
+                ...field,
+                id: String(++idGen),
+              };
+
+              // Compatibility: check both direct key and property-suffixed key
+              const extractedValue = resolvedData[fieldKey];
+
+              if (field.type === "text") {
+                const val = resolvedData[`${fieldKey}.text`] ?? extractedValue;
+                if (val !== undefined)
+                  (baseField as ItemTextField).text = String(val);
+              } else if (field.type === "labelText") {
+                const val = resolvedData[`${fieldKey}.body`] ?? extractedValue;
+                if (val !== undefined)
+                  (baseField as ItemLabelTextField).body = String(val);
+              } else if (field.type === "link") {
+                const val = resolvedData[`${fieldKey}.url`] ?? extractedValue;
+                if (val !== undefined)
+                  (baseField as ItemLinkField).url = String(val);
+              } else if (field.type === "rating") {
+                const val =
+                  resolvedData[`${fieldKey}.rating`] ?? extractedValue;
+                if (val !== undefined)
+                  (baseField as ItemRatingField).rating =
+                    parseInt(String(val)) || 0;
+              } else if (field.type === "card") {
+                const titleVal = resolvedData[`${fieldKey}.title`];
+                const subTextVal = resolvedData[`${fieldKey}.subText`];
+                if (titleVal !== undefined)
+                  (baseField as ItemCardField).title = String(titleVal);
+                if (subTextVal !== undefined)
+                  (baseField as ItemCardField).subText = String(subTextVal);
+              }
+
+              return baseField;
+            })
+          : column,
+      ),
+    );
+
+    const hasTagsField = layout.some((tab) =>
+      tab.some(
+        (col, idx) =>
+          idx !== 0 && (col as ItemField[]).some((f) => f.type === "tags"),
+      ),
+    );
+
+    if (!hasTagsField && layout.length > 0 && layout[0].length > 1) {
+      (layout[0][1] as ItemField[]).unshift({
+        id: String(++idGen),
+        type: "tags",
+      } as ItemField & { id?: string });
+    }
+
+    setLayoutTabs(layout as ItemFormLayoutTab[]);
+  }
+
+  async function handleExtract(paramValues: Record<string, string>) {
+    if (!selectedTemplate?.extractor) return;
+    setIsExtracting(true);
+    try {
+      const { link, method, params, mappings } = selectedTemplate.extractor;
+      let processedLink = link;
+      const usedInUrl = new Set<string>();
+
+      params.forEach((p) => {
+        const placeholder = `{${p.key}}`;
+        if (processedLink.includes(placeholder)) {
+          processedLink = processedLink.replaceAll(
+            placeholder,
+            paramValues[p.key] || "",
+          );
+          usedInUrl.add(p.key);
+        }
+      });
+
+      const url = new URL(processedLink);
+      let body: Record<string, string> | null = null;
+
+      params.forEach((p) => {
+        if (usedInUrl.has(p.key)) return;
+
+        if (p.location === "query") {
+          url.searchParams.append(p.key, paramValues[p.key] || "");
+        } else if (p.location === "body") {
+          if (!body) body = {};
+          body[p.key] = paramValues[p.key] || "";
+        }
+      });
+
+      const res = await fetch("/api/proxy-extract", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url: url.toString(),
+          method,
+          body: body || undefined,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        addToast(
+          simpleToast(
+            `Extraction Error: ${res.status}`,
+            "danger",
+            err.message || res.statusText,
+          ),
+        );
+        return;
+      }
+
+      let data;
+      try {
+        data = await res.json();
+      } catch (e) {
+        addToast(
+          simpleToast(
+            "Extraction Failed",
+            "danger",
+            "Invalid JSON response from API",
+          ),
+        );
+        return;
+      }
+
+      // mapping
+      const resolvedData: Record<string, string | File> = {};
+      if (mappings) {
+        for (const [target, source] of Object.entries(mappings)) {
+          const path = typeof source === "string" ? source : source.path;
+          const prefix = typeof source === "string" ? "" : source.prefix || "";
+          const suffix = typeof source === "string" ? "" : source.suffix || "";
+
+          const value = path
+            .split(".")
+            .reduce(
+              (obj: unknown, key) => (obj as Record<string, unknown>)?.[key],
+              data,
+            );
+
+          if (value !== undefined) {
+            // Apply prefix/suffix
+            const formattedValue = `${prefix}${value}${suffix}`;
+
+            if (
+              (target === "poster" || target === "cover") &&
+              formattedValue.startsWith("http")
+            ) {
+              const file = await fetchImageAsFile(
+                formattedValue,
+                `${target}-${Date.now()}.jpg`,
+              );
+              resolvedData[target] = file || formattedValue;
+            } else {
+              resolvedData[target] = formattedValue;
+            }
+          }
+        }
+      }
+
+      applyTemplate(selectedTemplate, resolvedData);
+      onExtractorParamsClose();
+    } catch (e) {
+      console.error("Extraction error:", e);
+      addToast(
+        simpleToast(
+          "Extraction Failed",
+          "danger",
+          "Network error or CORS issue. Check console.",
+        ),
+      );
+    } finally {
+      setIsExtracting(false);
+    }
+  }
+
+  async function fetchImageAsFile(url: string, filename: string) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      const blob = await res.blob();
+      return new File([blob], filename, { type: blob.type });
+    } catch (e) {
+      console.error("Failed to fetch image:", e);
+      return null;
+    }
+  }
 
   function onSubmit(data: ItemFormData) {
     const formData = new FormData();
@@ -140,8 +381,6 @@ function AddItemPage() {
     mutation.mutate(formData);
   }
 
-  const { isOpen, onOpen, onOpenChange } = useDisclosure();
-
   if (isPending || tags.isPending) return <ListsLoading />;
   if (!isSuccess || !tags.isSuccess)
     return <ErrorPage message="Failed To Fetch The List" />;
@@ -161,38 +400,30 @@ function AddItemPage() {
       <ItemFormHeaderTitleBar>
         {templatesQuery.data && templatesQuery.data.length > 0 && (
           <>
-            <Button onPress={onOpen} isIconOnly>
+            <Button onPress={onTemplatePickerOpen} isIconOnly>
               <PiBlueprint size={20} />
             </Button>
             <TemplatePickerModal
-              isOpen={isOpen}
-              onOpenChange={onOpenChange}
+              isOpen={isTemplatePickerOpen}
+              onOpenChange={onTemplatePickerOpenChange}
               templates={templatesQuery.data}
-              onSelect={(t) => {
-                const currentValues = itemForm.getValues();
-                // Use reset to reliably populate the form fields while preserving media/tags
-                itemForm.reset({
-                  ...currentValues,
-                  title: t.title,
-                  description: t.description || "",
-                  header: t.header,
-                });
-
-                // Ensure layout fields have unique IDs for dnd-kit
-                let idGen = Date.now();
-                const layoutWithIds = (t.layout as ItemFormLayoutTab[]).map(
-                  (tab) =>
-                    tab.map((column, i) =>
-                      i === 0
-                        ? column
-                        : (column as any[]).map((field) => ({
-                            ...field,
-                            id: String(++idGen),
-                          })),
-                    ),
-                );
-                setLayoutTabs(layoutWithIds as ItemFormLayoutTab[]);
+              onSelect={(t: ItemData) => {
+                setSelectedTemplate(t);
+                if (t.extractor) {
+                  onTemplatePickerClose();
+                  onExtractorParamsOpen();
+                } else {
+                  applyTemplate(t);
+                  onTemplatePickerClose();
+                }
               }}
+            />
+            <ExtractorParamsModal
+              isOpen={isExtractorParamsOpen}
+              onOpenChange={onExtractorParamsOpenChange}
+              params={selectedTemplate?.extractor?.params || []}
+              onExtract={handleExtract}
+              loading={isExtracting}
             />
           </>
         )}
@@ -216,71 +447,6 @@ function AddItemPage() {
       />
       <ItemFormLayoutSection />
     </ItemFormProvider>
-  );
-}
-
-function TemplatePickerModal({
-  isOpen,
-  onOpenChange,
-  templates,
-  onSelect,
-}: {
-  isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
-  templates: ItemData[];
-  onSelect: (template: ItemData) => void;
-}) {
-  const [searchValue, setSearchValue] = useState("");
-
-  const filtered = useMemo(() => {
-    return templates.filter((t) =>
-      t.title.toLowerCase().includes(searchValue.toLowerCase()),
-    );
-  }, [templates, searchValue]);
-
-  return (
-    <Modal
-      isOpen={isOpen}
-      placement="center"
-      onOpenChange={onOpenChange}
-      size="4xl"
-    >
-      <ModalContent className="max-h-[80vh] overflow-y-auto">
-        {(onClose) => (
-          <ModalBody className="w-full p-3">
-            <Input
-              className="text-foreground shadow-none"
-              placeholder="Search templates..."
-              startContent={<BiSearch className="opacity-80" size={20} />}
-              value={searchValue}
-              onValueChange={setSearchValue}
-            />
-            <div className="w-full grid grid-cols-sm-card gap-2">
-              {filtered.map((t) => (
-                <Card
-                  key={t.id}
-                  isPressable
-                  className="aspect-square border-5 border-accented hover:scale-105 hover:border-primary cursor-pointer animate-fade-in bg-accented overflow-hidden group"
-                  onPress={() => {
-                    onSelect(t);
-                    onClose();
-                  }}
-                >
-                  <div className="w-full h-full flex flex-col items-center justify-center relative p-2">
-                    <PiBlueprint className="text-6xl font-light opacity-20 group-hover:opacity-40 transition-opacity" />
-                    <div className="absolute inset-x-0 bottom-0 p-2 flex flex-col items-center">
-                      <span className="text-xs font-bold truncate w-full text-center text-foreground">
-                        {t.title}
-                      </span>
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          </ModalBody>
-        )}
-      </ModalContent>
-    </Modal>
   );
 }
 

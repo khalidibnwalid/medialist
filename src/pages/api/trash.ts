@@ -63,9 +63,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
                 deletedItems.forEach(async item => {
                     // if the list is already deleted
-                    if (TrustedlistsIDs.has(item.listId)) return
+                    if (TrustedlistsIDs.has(item.listId!)) return
 
-                    const dir = await $getDir(user.id, item.listId, item.id)
+                    const dir = await $getDir(user.id, item.listId!, item.id)
                     const itemDir = dir.item as string
                     $deleteFolder(itemDir)
                 })

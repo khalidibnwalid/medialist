@@ -1,7 +1,14 @@
 import { SortableItemType } from "@/components/ui/layout/drag&drop/logic/SortableMultiContainersWrapper";
 import counterGenerator from "@/utils/functions/counterGenerator";
 import { TagData } from "@/utils/types/global";
-import { ItemData, ItemField, ItemLayoutHeader } from "@/utils/types/item";
+import {
+  ItemData,
+  ItemField,
+  ItemLayoutHeader,
+  ExtractorConfig,
+  ItemBadge,
+  ExtractorMapping,
+} from "@/utils/types/item";
 import { ListData } from "@/utils/types/list";
 import { MediaData } from "@/utils/types/media";
 import {
@@ -38,6 +45,8 @@ interface ItemFormContext {
   item?: ItemData;
   media: MediaData[];
   itemForm: UseFormReturn<ItemFormData>;
+  layoutTabs: ItemFormLayoutTab[];
+  setLayoutTabs: Dispatch<SetStateAction<ItemFormLayoutTab[]>>;
   activeTabFields: ItemFormField[][];
   setActiveTabFields: Dispatch<SetStateAction<ItemFormField[][]>>;
   activeTabHeader: ItemLayoutHeader;
@@ -67,6 +76,7 @@ export interface ItemFormData extends Omit<
   cover: File | null | string;
   poster: File | null | string;
   media?: ItemFormMedia[];
+  extractor?: ExtractorConfig;
 }
 
 export const ItemFormContext = createContext({} as ItemFormContext);
@@ -98,8 +108,8 @@ export default function ItemFormProvider({
     if (!layoutTabs?.[activeTabIndex]?.[0]) return;
 
     setLayoutTabs((prev) => {
-      let newTabs = [...prev];
-      const prevHeader = prev[activeTabIndex]?.[0] as ItemLayoutHeader;
+      const newTabs = [...prev];
+      const prevHeader = prev[activeTabIndex]?.[0];
       const fields = prev[activeTabIndex]?.slice(1) as ItemFormField[][];
       const newHeader = typeof value === "function" ? value(prevHeader) : value;
 
@@ -123,7 +133,7 @@ export default function ItemFormProvider({
 
   const initializedLayoutIdRef = useRef<string | null>(null);
 
-  // initializing form default values
+  // Stabilizing and initializing form default values
   useEffect(() => {
     const currentId = item?.id || "new";
     if (initializedLayoutIdRef.current === currentId) return;
@@ -137,56 +147,101 @@ export default function ItemFormProvider({
       ],
     ];
 
-    // adding ids to the fields
-    let idGen = 1;
+    // 1. Stabilize Layout IDs
+    let idGen = 100;
     const layout =
       item?.layout &&
       item?.layout.map((tab) =>
-        tab.map(
-          (column, i) =>
-            i !== 0
-              ? (column as ItemField[]).map((field) => ({
-                  ...field,
-                  id: String(++idGen),
-                }))
-              : column, // header
+        tab.map((column, i) =>
+          i !== 0
+            ? (column as (ItemField & { id?: string })[]).map((field) => ({
+                ...field,
+                id: field.id || String(++idGen),
+              }))
+            : column,
         ),
       );
+    const finalLayout = layout || defaultTemplate;
 
-    setLayoutTabs(layout || (defaultTemplate as any));
-  }, [item?.id, item?.layout, isTemplate, setLayoutTabs]);
+    // 2. Stabilize Badge IDs
+    const stabilizedBadges = item?.header?.badges?.map((badge) => ({
+      ...badge,
+      id: (badge as ItemBadge & { id?: string }).id || String(++idGen),
+    }));
+    const finalHeader = item?.header
+      ? { ...item.header, badges: stabilizedBadges }
+      : undefined;
 
-  // Reset form when item actually arrives or changes
-  useEffect(() => {
-    if (!item) return;
+    // make Mappings ID-based
+    let extractor = item?.extractor;
+    if (isTemplate && extractor?.mappings) {
+      const newMappings: Record<string, string | ExtractorMapping> = {};
+      Object.entries(extractor.mappings).forEach(([target, source]) => {
+        if (target.startsWith("layout.")) {
+          const parts = target.split(".");
+          const tabIdx = parseInt(parts[1]);
+          const colIdx = parseInt(parts[2]);
+          const fieldIdx = parseInt(parts[3]);
+          const prop = parts[4]; // e.g., layout.0.1.2.title -> title
 
-    const {
-      coverPath,
-      posterPath,
-      layout: itemLayout,
-      tags: itemTags,
-      ...itemData
-    } = item;
-    const itemSrc = `/api/file/${item.userId}/${item.listId}/${item.id}`;
+          const fields = finalLayout?.[tabIdx]?.slice(1) as ItemFormField[][];
+          const field = fields?.[colIdx - 1]?.[fieldIdx];
 
-    const cover = coverPath ? `${itemSrc}/${coverPath}` : null;
-    const poster = posterPath ? `${itemSrc}/${posterPath}` : null;
+          if (field?.id) {
+            newMappings[`field:${field.id}${prop ? `:${prop}` : ""}`] = source;
+          } else {
+            newMappings[target] = source;
+          }
+        } else if (target.startsWith("header.badges.")) {
+          const badgeIdx = parseInt(target.replace("header.badges.", ""));
+          const badge = stabilizedBadges?.[badgeIdx];
+          if (badge?.id) {
+            newMappings[`badge:${badge.id}`] = source;
+          } else {
+            newMappings[target] = source;
+          }
+        } else {
+          newMappings[target] = source;
+        }
+      });
+      extractor = { ...extractor, mappings: newMappings };
+    }
 
-    const garbageCollectedTags = !isTemplate
-      ? itemTags.filter((tagId) => tags.some((t) => t.id === tagId))
-      : [];
+    // update parent state
+    setLayoutTabs(finalLayout as ItemFormLayoutTab[]);
+
+    // reset form
+    const itemSrc = item
+      ? `/api/file/${item.userId}/${item.listId}/${item.id}`
+      : "";
+    const cover = item?.coverPath ? `${itemSrc}/${item.coverPath}` : null;
+    const poster = item?.posterPath ? `${itemSrc}/${item.posterPath}` : null;
+    const garbageCollectedTags =
+      !isTemplate && item?.tags
+        ? item.tags.filter((tagId) => tags.some((t) => t.id === tagId))
+        : [];
 
     itemForm.reset({
-      ...itemData,
-      title: item.title,
-      description: item.description || "",
-      header: item.header,
+      ...item,
+      title: item?.title || "",
+      description: item?.description || "",
+      header: finalHeader || { type: "poster_inside", badges: [] },
+      extractor,
       cover,
       poster,
       tags: garbageCollectedTags,
       media: [],
     });
-  }, [item, isTemplate, itemForm, tags]);
+  }, [
+    item?.id,
+    item?.layout,
+    item?.header,
+    isTemplate,
+    tags,
+    itemForm,
+    setLayoutTabs,
+    item,
+  ]);
 
   return (
     <ItemFormContext.Provider
@@ -195,6 +250,8 @@ export default function ItemFormProvider({
         list,
         item,
         itemForm,
+        layoutTabs,
+        setLayoutTabs,
         activeTabFields,
         setActiveTabFields,
         activeTabHeader,

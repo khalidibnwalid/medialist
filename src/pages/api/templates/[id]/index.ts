@@ -28,6 +28,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             if (body.description !== undefined) updateData.description = body.description;
             if (body.layout !== undefined) updateData.layout = body.layout;
             if (body.header !== undefined) updateData.header = body.header;
+            if (body.extractor !== undefined) updateData.extractor = body.extractor;
 
             const [updated] = await $updateItems(user.id, template.id, updateData);
             return res.status(200).json(updated);

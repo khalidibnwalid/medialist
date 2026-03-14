@@ -43,6 +43,11 @@ docker run --name medialist -p 3000:3000 -e PORT=3000 -e DATABASE_PATH=db/sqlite
 
 For more details, see [Installation Guide](https://github.com/khalidibnwalid/medialist/wiki/Installation)
 
+## Data
+
+Please keep a backup of your data before upgrading, as some migrations might escape my sight.
+Just copy the `db` folder or the database file.
+
 ## Contribution
 
 Consider supporting the project by starring the repository!

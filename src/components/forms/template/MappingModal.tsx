@@ -17,6 +17,7 @@ import {
 } from "@heroui/react";
 import { useContext, useMemo, useState } from "react";
 import { BiPlay, BiTargetLock } from "react-icons/bi";
+import UrlHighlightInput from "./UrlHighlightInput";
 
 interface MappingTarget {
   key: string;
@@ -174,17 +175,44 @@ export default function MappingModal({
     );
   }, [targetField]);
 
-  function applyMapping() {
+  function applyMapping(isFallback = false) {
     if (selectedPath && targetField) {
       const currentMappings = itemForm.getValues("extractor.mappings") || {};
+      const existing = currentMappings[targetField];
 
-      let mappingValue: string | ExtractorMapping = selectedPath;
-      if (prefix || suffix) {
-        mappingValue = {
-          path: selectedPath,
-          prefix: prefix || undefined,
-          suffix: suffix || undefined,
-        };
+      let mappingValue: string | ExtractorMapping;
+
+      if (isFallback && existing) {
+        // Append to existing mapping
+        if (typeof existing === "string") {
+          mappingValue = {
+            path: [existing, selectedPath],
+            prefix: prefix || undefined,
+            suffix: suffix || undefined,
+          };
+        } else {
+          const paths = Array.isArray(existing.path)
+            ? [...existing.path, selectedPath]
+            : [existing.path, selectedPath];
+          mappingValue = {
+            ...existing,
+            path: paths,
+            // Keep existing prefix/suffix or use new ones if they were empty
+            prefix: prefix || existing.prefix,
+            suffix: suffix || existing.suffix,
+          };
+        }
+      } else {
+        // Create new mapping
+        if (prefix || suffix) {
+          mappingValue = {
+            path: selectedPath,
+            prefix: prefix || undefined,
+            suffix: suffix || undefined,
+          };
+        } else {
+          mappingValue = selectedPath;
+        }
       }
 
       itemForm.setValue("extractor.mappings", {
@@ -367,15 +395,15 @@ export default function MappingModal({
 
                         {supportsTransformations && (
                           <div className="grid grid-cols-2 gap-3 animate-in fade-in slide-in-from-top-2">
-                            <Input
+                            <UrlHighlightInput
                               label="Prefix"
-                              placeholder="e.g. https://image.example.com/t/p/w500"
+                              placeholder="e.g. https://example.com/{id}/"
                               size="sm"
                               variant="bordered"
                               value={prefix}
                               onValueChange={setPrefix}
                             />
-                            <Input
+                            <UrlHighlightInput
                               label="Suffix"
                               placeholder="e.g. .jpg"
                               size="sm"
@@ -402,17 +430,71 @@ export default function MappingModal({
                           </div>
                         )}
 
-                        <Button
-                          className="w-full font-bold h-11"
-                          color="primary"
-                          size="lg"
-                          variant="flat"
-                          isDisabled={!selectedPath || !targetField}
-                          onPress={applyMapping}
-                          startContent={<BiTargetLock className="text-xl" />}
-                        >
-                          Add Mapping
-                        </Button>
+                        <div className="space-y-2 pt-2">
+                          <div className="flex gap-2">
+                            <Button
+                              className="flex-1 font-bold h-11"
+                              color="primary"
+                              size="lg"
+                              variant="flat"
+                              isDisabled={!selectedPath || !targetField}
+                              onPress={() => applyMapping(false)}
+                              startContent={
+                                <BiTargetLock className="text-xl" />
+                              }
+                            >
+                              {itemForm.getValues(
+                                `extractor.mappings.${targetField}`,
+                              )
+                                ? "Overwrite"
+                                : "Add Mapping"}
+                            </Button>
+                            {itemForm.getValues(
+                              `extractor.mappings.${targetField}`,
+                            ) && (
+                              <Button
+                                className="font-bold h-11 px-6"
+                                color="secondary"
+                                size="lg"
+                                variant="flat"
+                                isDisabled={!selectedPath}
+                                onPress={() => applyMapping(true)}
+                              >
+                                + Fallback
+                              </Button>
+                            )}
+                          </div>
+
+                          {targetField &&
+                            itemForm.getValues(
+                              `extractor.mappings.${targetField}`,
+                            ) && (
+                              <div className="p-2 bg-foreground/5 rounded text-[10px] space-y-1">
+                                <span className="opacity-40 uppercase font-bold">
+                                  Current Paths:
+                                </span>
+                                {(() => {
+                                  const m = itemForm.getValues(
+                                    `extractor.mappings.${targetField}`,
+                                  );
+                                  const paths =
+                                    typeof m === "string"
+                                      ? [m]
+                                      : Array.isArray(m.path)
+                                        ? m.path
+                                        : [m.path];
+                                  return paths.map((p: string, i: number) => (
+                                    <div
+                                      key={i}
+                                      className="font-mono truncate opacity-70"
+                                    >
+                                      {i + 1}. {p}
+                                    </div>
+                                  ));
+                                })()}
+                              </div>
+                            )}
+                        </div>
                       </div>
                     </AccordionItem>
                   </Accordion>

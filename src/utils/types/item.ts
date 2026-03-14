@@ -65,7 +65,7 @@ export interface ItemLinkField extends LogoField { type: "link", url: string }
 export interface ItemRatingField { type: "rating", rating: number, from: number }
 
 export interface ExtractorMapping {
-    path: string
+    path: string | string[]
     prefix?: string
     suffix?: string
 }

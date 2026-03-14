@@ -1,4 +1,4 @@
-import ExtractorParamsModal from "@/components/forms/item/ExtractorParamsModal";
+import ExtractorParamsModal from "@/components/forms/template/ExtractorParamsModal";
 import ItemFormHeaderSection from "@/components/forms/item/ItemFormHeaderSection";
 import ItemFormHeaderTitleBar from "@/components/forms/item/ItemFormHeaderTitleBar";
 import ItemFormLayoutSection from "@/components/forms/item/ItemFormLayoutSection";
@@ -268,20 +268,27 @@ function AddItemPage() {
       const resolvedData: Record<string, string | File> = {};
       if (mappings) {
         for (const [target, source] of Object.entries(mappings)) {
-          const path = typeof source === "string" ? source : source.path;
+          const rawPath = typeof source === "string" ? source : source.path;
           const prefix = typeof source === "string" ? "" : source.prefix || "";
           const suffix = typeof source === "string" ? "" : source.suffix || "";
 
-          const value = path
-            .split(".")
-            .reduce(
-              (obj: unknown, key) => (obj as Record<string, unknown>)?.[key],
-              data,
-            );
+          const paths = Array.isArray(rawPath) ? rawPath : [rawPath];
+          let value: any = undefined;
+
+          for (const path of paths) {
+            value = path
+              .split(".")
+              .reduce(
+                (obj: unknown, key) => (obj as Record<string, unknown>)?.[key],
+                data,
+              );
+            if (value !== undefined && value !== null) break;
+          }
 
           if (value !== undefined) {
-            // Apply prefix/suffix
-            const formattedValue = `${prefix}${value}${suffix}`;
+            const resolvedPrefix = resolvePlaceholders(prefix, data);
+            const resolvedSuffix = resolvePlaceholders(suffix, data);
+            const formattedValue = `${resolvedPrefix}${value}${resolvedSuffix}`;
 
             if (
               (target === "poster" || target === "cover") &&
@@ -448,6 +455,18 @@ function AddItemPage() {
       <ItemFormLayoutSection />
     </ItemFormProvider>
   );
+}
+
+function resolvePlaceholders(str: string, data: any) {
+  return str.replace(/\{([\w\.]+)\}/g, (match, path) => {
+    const value = path
+      .split(".")
+      .reduce(
+        (obj: any, key: string) => (obj as Record<string, unknown>)?.[key],
+        data,
+      );
+    return value !== undefined ? String(value) : "";
+  });
 }
 
 export default function AddItemPageHOC() {

@@ -272,8 +272,14 @@ export default function TemplateExtractorSection() {
                             {displayTarget}
                           </span>
                           <span className="opacity-40">←</span>
-                          <span className="font-mono opacity-80">
-                            {typeof source === "string" ? source : source.path}
+                          <span className="font-mono opacity-80 truncate flex-1 text-right">
+                            {(() => {
+                              const p =
+                                typeof source === "string"
+                                  ? source
+                                  : source.path;
+                              return Array.isArray(p) ? p.join(", ") : p;
+                            })()}
                           </span>
                         </div>
                       );

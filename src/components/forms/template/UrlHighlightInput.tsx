@@ -30,7 +30,7 @@ const UrlHighlightInput = React.forwardRef<
   }, [value]);
 
   const highlightText = (text: string) => {
-    const parts = String(text).split(/(\{[a-zA-Z0-9_-]+\})/g);
+    const parts = String(text).split(/(\{[a-zA-Z0-9_\-.]+\})/g);
     return parts.map((part, i) => {
       if (part.startsWith("{") && part.endsWith("}")) {
         return (

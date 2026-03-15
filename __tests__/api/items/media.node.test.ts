@@ -16,6 +16,11 @@ vi.mock('node:fs')
 vi.mock('node:fs/promises')
 vi.mock('@/server/db');
 
+test('debug env', () => {
+    console.log('DATABASE_URL:', process.env.DATABASE_PATH);
+    console.log('VITE_VARIABLE:', process.env.VITE_VARIABLE);
+});
+
 describe('api/items/[id]/media', async () => {
     const file = await TEST_MOCK_FILE_BUFFER
 
@@ -24,6 +29,7 @@ describe('api/items/[id]/media', async () => {
             const { userMock, ...item } = await $mockItem({ title: 'Item' });
             const { userData, ...user } = userMock;
             const { cookies } = await user.createCookie();
+            console.log(process.env)
 
             const { body, statusCode } = await $mockHttp(itemsMediaRouter).get(undefined, { cookies, query: { id: $generateShortID() } });
             expect(body).toEqual({ errorCode: ApiErrorCode.NOT_FOUND });

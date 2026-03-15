@@ -57,7 +57,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                     if (data?.media && Array.isArray(data.media) && data.media.length > 0) {
                         const toAdd = newMedia()
                         data.media = toAdd
-                        newMediaData = await $createItemMedia(toAdd)
+                        newMediaData = await $createItemMedia(toAdd) as MediaData[]
                     }
 
                     if (data.layout !== undefined) {

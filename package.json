@@ -11,8 +11,10 @@
     "test": "vitest",
     "test:migrate": "set DATABASE_PATH=tests.db && npx drizzle-kit migrate",
     "db:gen": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate --config=drizzle.config.ts",
-    "db:studio": "drizzle-kit studio"
+    "db:migrate-only": "drizzle-kit migrate --config=drizzle.config.ts",
+    "db:migrate": "npm run db:recover; npm run db:migrate-only",
+    "db:studio": "drizzle-kit studio",
+    "db:recover": "node scripts/recover.js"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.1.0",

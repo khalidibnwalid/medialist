@@ -51,6 +51,8 @@ COPY --from=builder --chown=node:node /app/.next/static ./.next/static
 COPY --from=builder --chown=node:node /app/src/server/db/migrations ./src/server/db/migrations
 COPY --from=builder --chown=node:node /app/drizzle.config.ts ./drizzle.config.ts
 
+COPY --from=builder --chown=node:node /app/scripts/recover.js ./scripts/recover.js
+
 EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"

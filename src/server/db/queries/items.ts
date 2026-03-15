@@ -1,6 +1,6 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "..";
-import { itemsTable } from "../schema";
+import { itemsMedia, itemsTable } from "../schema";
 
 export const $getItems = async (userId: string, listId: string | null, trash: boolean = false, isTemplate: boolean = false) => {
     let rules = [
@@ -43,8 +43,13 @@ export const $updateItems = async (userId: string, itemIDs: string | string[], d
         .returning();
 }
 
-export const $deleteItems = async (userId: string, itemsIDs: string[]) =>
-    await db
+export const $deleteItems = async (userId: string, itemsIDs: string[]) => {
+    await db.delete(itemsMedia).where(and(
+        eq(itemsMedia.userId, userId),
+        inArray(itemsMedia.itemId, itemsIDs)
+    ))
+
+    return await db
         .delete(itemsTable)
         .where(and(
             eq(itemsTable.userId, userId),
@@ -55,3 +60,4 @@ export const $deleteItems = async (userId: string, itemsIDs: string[]) =>
             listId: itemsTable.listId,
             userId: itemsTable.userId,
         })
+}

@@ -34,8 +34,7 @@ export const sessionsTable = sqliteTable("sessions", {
         .notNull()
         .primaryKey(),
     userId: text("user_id")
-        .notNull()
-        .references(() => usersTable.id, { onDelete: "cascade" }),
+        .references(() => usersTable.id, { onDelete: "set null" }),
     agent: text("agent_json", { mode: "json" })
         .notNull()
         .default("{}"),
@@ -56,8 +55,7 @@ export const listsTable = sqliteTable("lists", {
         .notNull()
         .primaryKey(),
     userId: text("user_id")
-        .notNull()
-        .references(() => usersTable.id, { onDelete: "cascade" }),
+        .references(() => usersTable.id, { onDelete: "set null" }),
     title: text("title")
         .notNull(),
     coverPath: text("cover_path"),
@@ -88,10 +86,9 @@ export const itemsTable = sqliteTable("items", {
         .notNull()
         .primaryKey(),
     userId: text("user_id")
-        .notNull()
-        .references(() => usersTable.id, { onDelete: "cascade" }),
+        .references(() => usersTable.id, { onDelete: "set null" }),
     listId: text("list_id")
-        .references(() => listsTable.id, { onDelete: "cascade" }),
+        .references(() => listsTable.id, { onDelete: "set null" }),
     title: text("title")
         .notNull(),
     posterPath: text("poster_path"),
@@ -142,11 +139,9 @@ export const listsTagsTable = sqliteTable("lists_tags", {
         .notNull()
         .primaryKey(),
     listId: text("list_id")
-        .notNull()
-        .references(() => listsTable.id, { onDelete: "cascade" }),
+        .references(() => listsTable.id, { onDelete: "set null" }),
     userId: text("user_id")
-        .notNull()
-        .references(() => usersTable.id, { onDelete: "cascade" }),
+        .references(() => usersTable.id, { onDelete: "set null" }),
     label: text("label")
         .notNull(),
     description: text("description"),
@@ -171,11 +166,9 @@ export const itemsMedia = sqliteTable("items_media", {
         .notNull()
         .primaryKey(),
     itemId: text("item_id")
-        .notNull()
-        .references(() => itemsTable.id, { onDelete: "cascade" }),
+        .references(() => itemsTable.id, { onDelete: "set null" }),
     userId: text("user_id")
-        .notNull()
-        .references(() => usersTable.id, { onDelete: "cascade" }),
+        .references(() => usersTable.id, { onDelete: "set null" }),
     title: text("title"),
     keywords: text("json_keywords", { mode: "json" })
         .notNull()

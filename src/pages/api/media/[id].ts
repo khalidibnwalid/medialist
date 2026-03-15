@@ -47,7 +47,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
 
         if (req.method === 'DELETE') {
-            const [item] = await $getItem(user.id, media.itemId)
+            const [item] = await $getItem(user.id, media.itemId!)
             const { item: itemDir } = await $getDir(user.id, item.listId!, item.id)
             $deleteFile(THUMBNAILS_OPTIONS.ITEM_MEDIA, itemDir as string, media.path)
             const [deleteMedia] = await $deleteItemMedia(user.id, media.id)

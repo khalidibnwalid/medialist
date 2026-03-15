@@ -162,6 +162,8 @@ describe('api/lists/[id]/items', async () => {
                     description: 'new item description',
                     posterPath: expect.any(String),
                     coverPath: expect.any(String),
+                    extractor: null,
+                    isTemplate: false,
                     layout: [
                         [
                             { type: 'one_row', label: 'tab1' },
@@ -259,6 +261,8 @@ describe('api/lists/[id]/items', async () => {
                     title: 'new item',
                     trash: false,
                     fav: false,
+                    extractor: null,
+                    isTemplate: false,
                     tags: [],
                     layout: [],
                     header: {},

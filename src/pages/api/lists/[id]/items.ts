@@ -74,7 +74,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
                     // should be created after the item, since it uses the item id as a foreign key
                     if (data.media && data.media.length > 0)
-                        newMediaData = await $createItemMedia(newMediaData)
+                        newMediaData = await $createItemMedia(newMediaData) as MediaData[]
 
                     res.status(201).json({
                         item: item,

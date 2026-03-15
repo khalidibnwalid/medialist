@@ -20,7 +20,16 @@ import {
 import { errorToast, simpleToast } from "@/utils/toast";
 import { ItemData, ItemBadge, ExtractorMapping } from "@/utils/types/item";
 import { ListData } from "@/utils/types/list";
-import { addToast, Button } from "@heroui/react";
+import {
+  addToast,
+  Button,
+  Modal,
+  ModalBody,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
+  useDisclosure,
+} from "@heroui/react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import Head from "next/head";
 import { useRouter } from "next/router";
@@ -151,6 +160,12 @@ function EditTemplatePage() {
     mutation.mutate(payload as any);
   }
 
+  const {
+    isOpen: isDeleteModalOpen,
+    onOpen: onDeleteModalOpen,
+    onOpenChange: onDeleteModalOpenChange,
+  } = useDisclosure();
+
   if (isPending) return <ListsLoading />;
   if (!isSuccess) return <ErrorPage message="Failed To Fetch The Template" />;
 
@@ -169,11 +184,7 @@ function EditTemplatePage() {
         <title>MediaList - Edit Template</title>
       </Head>
       <ItemFormHeaderTitleBar>
-        <Button
-          color="danger"
-          isIconOnly
-          onPress={() => deleteMutation.mutate()}
-        >
+        <Button color="danger" isIconOnly onPress={onDeleteModalOpen}>
           <BiTrash className="text-xl" />
         </Button>
         <StatusSubmitButton
@@ -196,6 +207,46 @@ function EditTemplatePage() {
         setActiveTabIndex={setActiveTabIndex}
       />
       <ItemFormLayoutSection />
+
+      <Modal
+        isOpen={isDeleteModalOpen}
+        onOpenChange={onDeleteModalOpenChange}
+        backdrop="blur"
+      >
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader className="flex flex-col gap-1">
+                Confirm Deletion
+              </ModalHeader>
+              <ModalBody>
+                <p>
+                  Are you sure you want to delete the template{" "}
+                  <strong>{template?.title}</strong>?
+                </p>
+                <p className="text-danger text-sm">
+                  This action cannot be undone and will permanently remove this
+                  template.
+                </p>
+              </ModalBody>
+              <ModalFooter>
+                <Button variant="light" onPress={onClose}>
+                  Cancel
+                </Button>
+                <Button
+                  color="danger"
+                  isLoading={deleteMutation.isPending}
+                  onPress={() => {
+                    deleteMutation.mutate();
+                  }}
+                >
+                  Delete Template
+                </Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
     </ItemFormProvider>
   );
 }

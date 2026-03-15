@@ -15,6 +15,13 @@
       "when": 1773348261672,
       "tag": "0001_add-templates",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1773520567066,
+      "tag": "0002_remove-cascade",
+      "breakpoints": true
     }
   ]
 }

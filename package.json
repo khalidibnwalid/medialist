@@ -28,7 +28,7 @@
     "better-sqlite3": "^11.7.2",
     "busboy": "^1.6.0",
     "drizzle-kit": "^0.31.8",
-    "drizzle-orm": "^0.38.3",
+    "drizzle-orm": "^0.45.2",
     "express": "^4.22.1",
     "framer-motion": "^12.4.7",
     "nanoid": "^5.0.7",

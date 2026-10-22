@@ -1,12 +1,14 @@
+import ConnectAppModal from "@/components/features/connect/ConnectAppModal"
 import UserPageSecurityTab from "@/components/page/user/SecurityTab"
 import { useUser } from "@/components/providers/AuthProvider"
 import TitleBar from "@/components/ui/bars/TitleBar"
-import { Tab, Tabs } from "@heroui/react"
-import { BiShieldAlt2 } from "react-icons/bi"
+import { Button, Tab, Tabs, useDisclosure } from "@heroui/react"
+import { BiMobileAlt, BiShieldAlt2 } from "react-icons/bi"
 import { RiUserLine } from "react-icons/ri"
 
 export default function UserPage() {
     const { user } = useUser()
+    const connectModal = useDisclosure()
 
     return (<>
         <TitleBar
@@ -15,6 +17,13 @@ export default function UserPage() {
             startContent={<RiUserLine className="text-3xl mr-3" />}
         >
             <div className="flex gap-x-2">
+                <Button
+                    variant="flat"
+                    onPress={connectModal.onOpen}
+                    startContent={<BiMobileAlt className="text-xl" />}
+                >
+                    Connect mobile app
+                </Button>
                 {/* {isAdmin && (
                     <Button title="Admin" variant="bordered">
                         Admin
@@ -71,5 +80,6 @@ export default function UserPage() {
             </Tabs>
             {/* pages: activites/ edit */}
         </main>
+        <ConnectAppModal isOpen={connectModal.isOpen} onOpenChange={connectModal.onOpenChange} />
     </>);
 }

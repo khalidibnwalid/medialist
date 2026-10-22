@@ -1,4 +1,4 @@
-import { Spinner } from "@heroui/react";
+import { Spinner, useDisclosure } from "@heroui/react";
 import { useTheme } from "next-themes";
 import { Poppins } from "next/font/google";
 import Head from "next/head";
@@ -8,12 +8,14 @@ import {
   BiArrowBack,
   BiCollection,
   BiLogOutCircle,
+  BiMobileAlt,
   BiTrashAlt
 } from "react-icons/bi";
 import { BsSun } from "react-icons/bs";
 import { PiBlueprint } from "react-icons/pi";
 import { RiMoonClearLine, RiUserLine } from "react-icons/ri";
 import { twJoin } from "tailwind-merge";
+import ConnectAppModal from "../features/connect/ConnectAppModal";
 import { useUser } from "../providers/AuthProvider";
 import BaseNavBar from "../ui/bars/nav/BaseNavBar";
 import BaseNavButton, {
@@ -76,6 +78,7 @@ export default function RootLayout({
             items={navItems}
             endContent={
               <>
+                <ConnectAppButton varient="sideLabel" />
                 <ThemeButton varient="sideLabel" />
                 <LogOutButton varient="sideLabel" />
               </>
@@ -114,6 +117,22 @@ const ThemeButton = ({ varient }: CustomButtonsProps) => {
       onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
       disableActive
     />
+  );
+};
+
+const ConnectAppButton = ({ varient }: CustomButtonsProps) => {
+  const { isOpen, onOpen, onOpenChange } = useDisclosure();
+  return (
+    <>
+      <BaseNavButton
+        varient={varient}
+        label="Connect mobile app"
+        icon={<BiMobileAlt />}
+        onClick={onOpen}
+        disableActive
+      />
+      <ConnectAppModal isOpen={isOpen} onOpenChange={onOpenChange} />
+    </>
   );
 };
 

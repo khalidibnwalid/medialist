@@ -4,41 +4,42 @@ import { NextResponse } from "next/server";
 // if not provided, it will Allow ALl Origins
 const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS?.split(",").map(origin => origin.trim()) || []
 const corsHeaders = {
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Auth-Mode',
+    'Access-Control-Max-Age': '600',
 }
 
+const isOriginCheckEnforced = () => process.env.NODE_ENV === "production" && ALLOWED_ORIGINS.length > 0
+
 export async function middleware(request: NextRequest): Promise<NextResponse> {
-    if (request.method === "GET" || process.env.NODE_ENV !== "production" || ALLOWED_ORIGINS.length === 0)
-        return NextResponse.next()
-
-    // Origin Check
     const origin = request.headers.get("Origin") ?? ''
-    const host = request.headers.get("Host")
-    const isOriginAllowed = ALLOWED_ORIGINS.includes(origin)
-
-    if (!origin || !host || !isOriginAllowed)
-        return new NextResponse(null, { status: 403 })
+    const isOriginAllowed = !!origin && (!isOriginCheckEnforced() || ALLOWED_ORIGINS.includes(origin))
 
     //  preflighted
-    const isPreflight = request.method === 'OPTIONS'
+    if (request.method === 'OPTIONS') {
+        if (!isOriginAllowed) return new NextResponse(null, { status: 403 })
+        return new NextResponse(null, {
+            status: 204,
+            headers: { 'Access-Control-Allow-Origin': origin, 'Vary': 'Origin', ...corsHeaders },
+        })
+    }
 
-    if (isPreflight) {
-        const headers = {
-            ...(isOriginAllowed && { 'Access-Control-Allow-Origin': origin }),
-            ...corsHeaders,
-        }
-        return NextResponse.json({}, { headers })
+    // Origin Check
+    if (request.method !== "GET" && isOriginCheckEnforced()) {
+        const host = request.headers.get("Host")
+        if (!origin || !host || !isOriginAllowed)
+            return new NextResponse(null, { status: 403 })
     }
 
     const response = NextResponse.next()
 
-    if (isOriginAllowed)
+    if (isOriginAllowed) {
         response.headers.set('Access-Control-Allow-Origin', origin)
-
-    Object.entries(corsHeaders).forEach(([key, value]) => {
-        response.headers.set(key, value)
-    })
+        response.headers.set('Vary', 'Origin')
+        Object.entries(corsHeaders).forEach(([key, value]) => {
+            response.headers.set(key, value)
+        })
+    }
 
     return response
 }

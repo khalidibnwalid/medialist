@@ -1,6 +1,7 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "..";
 import { itemsMedia } from "../schema";
+import { $logRowsChanges } from "./sync";
 
 export const $getItemMedia = async (userId: string, item_id: string) => {
     return await db
@@ -22,14 +23,17 @@ export const $getItemMediaById = async (userId: string, id: string) => {
         ))
 }
 
-export const $createItemMedia = async (data: typeof itemsMedia.$inferInsert[] | typeof itemsMedia.$inferInsert) =>
-    await db
+export const $createItemMedia = async (data: typeof itemsMedia.$inferInsert[] | typeof itemsMedia.$inferInsert) => {
+    const rows = await db
         .insert(itemsMedia)
         .values(Array.isArray(data) ? data : [data])
         .returning();
+    await $logRowsChanges('media', rows)
+    return rows
+}
 
 export const $updateItemMedia = async (userId: string, id: string, data: Partial<typeof itemsMedia.$inferInsert>) => {
-    return await db
+    const rows = await db
         .update(itemsMedia)
         .set(data)
         .where(and(
@@ -37,15 +41,19 @@ export const $updateItemMedia = async (userId: string, id: string, data: Partial
             eq(itemsMedia.id, id),
         )).limit(1)
         .returning();
+    await $logRowsChanges('media', rows)
+    return rows
 }
 
 export const $deleteItemMedia = async (userId: string, ids: string[] | string) => {
     if (!Array.isArray(ids)) ids = [ids];
-    return await db
+    const rows = await db
         .delete(itemsMedia)
         .where(and(
             eq(itemsMedia.userId, userId),
             inArray(itemsMedia.id, ids),
         )).limit(ids.length)
         .returning();
+    await $logRowsChanges('media', rows)
+    return rows
 }

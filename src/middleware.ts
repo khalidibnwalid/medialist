@@ -12,6 +12,14 @@ const corsHeaders = {
 const isOriginCheckEnforced = () => process.env.NODE_ENV === "production" && ALLOWED_ORIGINS.length > 0
 
 export async function middleware(request: NextRequest): Promise<NextResponse> {
+    // uploaded files are public & cached as immutable: allow any origin unconditionally, otherwise a copy cached
+    // from a plain <img> load (no Origin, no CORS headers) breaks later cross-origin fetches of the same URL
+    if (request.method === 'GET' && request.nextUrl.pathname.startsWith('/api/file/')) {
+        const response = NextResponse.next()
+        response.headers.set('Access-Control-Allow-Origin', '*')
+        return response
+    }
+
     const origin = request.headers.get("Origin") ?? ''
     const isOriginAllowed = !!origin && (!isOriginCheckEnforced() || ALLOWED_ORIGINS.includes(origin))
 
@@ -32,10 +40,11 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     }
 
     const response = NextResponse.next()
+    // responses differ per origin (CORS headers), caches must not reuse them across origins
+    response.headers.set('Vary', 'Origin')
 
     if (isOriginAllowed) {
         response.headers.set('Access-Control-Allow-Origin', origin)
-        response.headers.set('Vary', 'Origin')
         Object.entries(corsHeaders).forEach(([key, value]) => {
             response.headers.set(key, value)
         })

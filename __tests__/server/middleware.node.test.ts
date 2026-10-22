@@ -107,4 +107,30 @@ describe('middleware CORS', () => {
             expect(res.headers.get('Access-Control-Allow-Origin')).toBeNull()
         })
     })
+
+    describe('uploaded files & caching', () => {
+        test('GET /api/file/* always allows any origin, even without an Origin header', async () => {
+            const middleware = await loadMiddleware()
+            const res = await middleware(request('GET', {}, '/api/file/u/l/i/thumbnails/a.webp'))
+
+            expect(res.headers.get('x-middleware-next')).toBe('1')
+            expect(res.headers.get('Access-Control-Allow-Origin')).toBe('*')
+        })
+
+        test('GET /api/file/* allows any origin in production even with ALLOWED_ORIGINS', async () => {
+            const middleware = await loadMiddleware({ NODE_ENV: 'production', ALLOWED_ORIGINS: 'https://app.example.com' })
+            const res = await middleware(request('GET', { Origin: 'https://evil.example.com' }, '/api/file/u/l/a.webp'))
+
+            expect(res.headers.get('Access-Control-Allow-Origin')).toBe('*')
+        })
+
+        test('other API responses always vary on Origin', async () => {
+            const middleware = await loadMiddleware()
+            const withoutOrigin = await middleware(request('GET'))
+            const withOrigin = await middleware(request('GET', { Origin: 'http://localhost:8081' }))
+
+            expect(withoutOrigin.headers.get('Vary')).toBe('Origin')
+            expect(withOrigin.headers.get('Vary')).toBe('Origin')
+        })
+    })
 })

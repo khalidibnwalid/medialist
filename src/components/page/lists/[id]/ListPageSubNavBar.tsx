@@ -19,7 +19,7 @@ import { ListPageContext } from "./ListPageProvider";
 
 export default function ListPageSubNavBar() {
     const router = useRouter();
-    const { list, viewMode, setViewMode, showTags, setShowTags, badgeableTags, tagsQuery, toggleTagQuery, filterSettings, setFilterSettings } = useContext(ListPageContext)
+    const { list, viewMode, setViewMode, showTags, setShowTags, badgeableTags, tagsQuery, toggleTagQuery, fav, setFav } = useContext(ListPageContext)
 
     const buttonProps: ButtonProps = {
         size: "sm",
@@ -51,8 +51,8 @@ export default function ListPageSubNavBar() {
                 <ToggleButton
                     {...buttonProps}
                     activeColor="warning"
-                    isToggled={filterSettings.fav}
-                    setIsToggled={() => setFilterSettings({ ...filterSettings, fav: !filterSettings.fav })}
+                    isToggled={fav}
+                    setIsToggled={() => setFav(!fav)}
                     toggledChildren={<BiSolidStar className="text-lg" />}
                 >
                     <BiStar className="text-lg" />

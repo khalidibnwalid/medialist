@@ -103,6 +103,131 @@ describe('api/lists/[id]/items', async () => {
         })
     })
 
+    describe('GET - paginated & filtered', async () => {
+        const getPage = (cookies: any, query: Record<string, string>) =>
+            $mockHttp(itemsRouter).get(undefined, { cookies, query })
+
+        test('should paginate with a cursor (title, id ordered) without duplicates or missing items', async () => {
+            const list = await $mockList();
+            const { userMock, listData } = list
+            const { cookies } = await userMock.createCookie();
+
+            // same titles to check the id tie-break
+            const titles = ['e', 'a', 'c', 'b', 'a', 'd', 'c']
+            const created = []
+            for (const title of titles) created.push((await $mockItem({ title }, list)).itemData)
+            await $mockItem({ title: 'trashed', trash: true }, list)
+            await $mockItem({ title: 'item of another list' }, userMock)
+
+            const expected = [...created]
+                .sort((a, b) => a.title < b.title ? -1 : a.title > b.title ? 1 : a.id < b.id ? -1 : 1)
+                .map(item => item.id)
+
+            const seen: string[] = []
+            let cursor: string | null = null
+            let pages = 0
+            do {
+                const query: Record<string, string> = { id: listData.id, limit: '3' }
+                if (cursor) query.cursor = cursor
+                const { body, statusCode } = await getPage(cookies, query)
+                expect(statusCode).toBe(200)
+                expect(body.total).toBe(7)
+                expect(body.items.length).toBeLessThanOrEqual(3)
+                seen.push(...body.items.map((item: ItemData) => item.id))
+                cursor = body.nextCursor
+                pages++
+            } while (cursor && pages < 10)
+
+            expect(pages).toBe(3)
+            expect(seen).toEqual(expected)
+
+            await list.delete();
+        })
+
+        test('should return nextCursor null when the page is the last one', async () => {
+            const list = await $mockList();
+            const { userMock, listData } = list
+            const { cookies } = await userMock.createCookie();
+
+            await $mockItem({ title: 'a' }, list)
+            await $mockItem({ title: 'b' }, list)
+
+            const exact = await getPage(cookies, { id: listData.id, limit: '2' })
+            expect(exact.body.items).toHaveLength(2)
+            expect(exact.body.nextCursor).toBeNull()
+
+            // default/max page size is 100
+            const big = await getPage(cookies, { id: listData.id, limit: '1000' })
+            expect(big.statusCode).toBe(200)
+            expect(big.body.items).toHaveLength(2)
+
+            const empty = await getPage(cookies, { id: listData.id, limit: '10', q: 'nothing' })
+            expect(empty.body).toEqual({ items: [], nextCursor: null, total: 0 })
+
+            await list.delete();
+        })
+
+        test('should filter by q (case-insensitive, wildcards escaped), tags (all of them) and fav', async () => {
+            const list = await $mockList();
+            const { userMock, listData } = list
+            const { cookies } = await userMock.createCookie();
+
+            const t1 = 'tag1' + $generateShortID(), t2 = 'tag2' + $generateShortID()
+            const dune = (await $mockItem({ title: 'Dune', tags: [t1, t2], fav: true }, list)).itemData
+            const dune2 = (await $mockItem({ title: 'Dune Part Two', tags: [t1] }, list)).itemData
+            const percent = (await $mockItem({ title: '100% Wolf', tags: [t2], fav: true }, list)).itemData
+            await $mockItem({ title: 'Arrival' }, list)
+
+            const ids = (body: { items: ItemData[] }) => body.items.map(item => item.id)
+
+            expect(ids((await getPage(cookies, { id: listData.id, limit: '10', q: 'dUNE' })).body))
+                .toEqual([dune.id, dune2.id])
+            expect(ids((await getPage(cookies, { id: listData.id, limit: '10', q: '%' })).body))
+                .toEqual([percent.id])
+            expect(ids((await getPage(cookies, { id: listData.id, limit: '10', q: '_' })).body))
+                .toEqual([])
+            expect(ids((await getPage(cookies, { id: listData.id, limit: '10', tags: t1 })).body))
+                .toEqual([dune.id, dune2.id])
+            expect(ids((await getPage(cookies, { id: listData.id, limit: '10', tags: `${t1},${t2}` })).body))
+                .toEqual([dune.id])
+            expect(ids((await getPage(cookies, { id: listData.id, limit: '10', fav: 'true' })).body))
+                .toEqual([percent.id, dune.id])
+
+            const combined = await getPage(cookies, { id: listData.id, limit: '1', fav: 'true', tags: t2 })
+            expect(combined.body.total).toBe(2)
+            expect(ids(combined.body)).toEqual([percent.id])
+            const next = await getPage(cookies, { id: listData.id, limit: '1', fav: 'true', tags: t2, cursor: combined.body.nextCursor })
+            expect(ids(next.body)).toEqual([dune.id])
+            expect(next.body.nextCursor).toBeNull()
+
+            // backward compatible: filters without limit/cursor return a plain array
+            const plain = await getPage(cookies, { id: listData.id, q: 'dune' })
+            expect(plain.body).toEqual([dune, dune2])
+
+            await list.delete();
+        })
+
+        test('should return 400 on invalid limit, cursor or fav', async () => {
+            const list = await $mockList();
+            const { userMock, listData } = list
+            const { cookies } = await userMock.createCookie();
+
+            const queries: Record<string, string>[] = [
+                { limit: '0' }, { limit: '-1' }, { limit: 'abc' }, { limit: '1.5' },
+                { cursor: 'garbage' }, { cursor: Buffer.from('["a"]').toString('base64url') },
+                { cursor: Buffer.from('["a","bad id!"]').toString('base64url') },
+                { fav: 'yes' },
+            ]
+            for (const query of queries) {
+                const { body, statusCode } = await getPage(cookies, { id: listData.id, ...query })
+                expect(statusCode, JSON.stringify(query)).toBe(400)
+                expect(body).toEqual({ errorCode: ApiErrorCode.BAD_REQUEST })
+            }
+
+            await list.delete();
+        })
+    })
+
     describe('POST - create an item in the list', () => {
         // to add: default header, default layout,
 

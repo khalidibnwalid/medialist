@@ -1,4 +1,5 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { ItemsFilters } from "@/utils/lib/itemsPagination";
+import { and, asc, count, eq, gt, inArray, or, SQL, sql } from "drizzle-orm";
 import { db } from "..";
 import { itemsMedia, itemsTable } from "../schema";
 import { $logRowsChanges } from "./sync";
@@ -15,6 +16,60 @@ export const $getItems = async (userId: string, listId: string | null, trash: bo
         .from(itemsTable)
         .where(and(...rules))
         .orderBy(trash ? itemsTable.updatedAt : itemsTable.title);
+}
+
+/** a page of the (title, id) ordered, non-trashed items of a list (keyset pagination)
+ * @param after the (title, id) of the last item of the previous page
+ * @param limit no limit if not provided
+ * @returns `limit + 1` rows at most, the extra row tells that there is a next page */
+export const $getItemsPage = async (
+    userId: string,
+    listId: string,
+    { limit, after, filters = {} }: {
+        limit?: number,
+        after?: { title: string, id: string } | null,
+        filters?: ItemsFilters
+    }
+) => {
+    const rules = $itemsFiltersRules(userId, listId, filters)
+    if (after) rules.push(or(
+        gt(itemsTable.title, after.title),
+        and(eq(itemsTable.title, after.title), gt(itemsTable.id, after.id))
+    )!)
+
+    const query = db
+        .select()
+        .from(itemsTable)
+        .where(and(...rules))
+        .orderBy(asc(itemsTable.title), asc(itemsTable.id))
+        .$dynamic()
+    return await (limit === undefined ? query : query.limit(limit + 1));
+}
+
+/** count of the non-trashed items of a list that match the filters */
+export const $countItems = async (userId: string, listId: string, filters: ItemsFilters = {}) => {
+    const [row] = await db
+        .select({ count: count() })
+        .from(itemsTable)
+        .where(and(...$itemsFiltersRules(userId, listId, filters)));
+    return row?.count ?? 0
+}
+
+function $itemsFiltersRules(userId: string, listId: string, { q, tags, fav }: ItemsFilters) {
+    const rules: SQL[] = [
+        eq(itemsTable.userId, userId),
+        eq(itemsTable.listId, listId),
+        eq(itemsTable.trash, false),
+        eq(itemsTable.isTemplate, false),
+    ]
+    if (fav) rules.push(eq(itemsTable.fav, true))
+    // LIKE is case-insensitive for ASCII in SQLite, the wildcards (% _) and the escape char (\) are escaped
+    if (q) rules.push(sql`${itemsTable.title} LIKE ${'%' + q.replace(/[\\%_]/g, c => '\\' + c) + '%'} ESCAPE '\\'`)
+    // tags are stored as a JSON array of ids, the item must have all of them
+    tags?.forEach(tagId => rules.push(
+        sql`EXISTS (SELECT 1 FROM json_each(${itemsTable.tags}) WHERE json_each.value = ${tagId})`
+    ))
+    return rules
 }
 
 export const $getItem = async (userId: string, itemId: string) =>

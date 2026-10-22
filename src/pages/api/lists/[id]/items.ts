@@ -1,4 +1,4 @@
-import { $createItems, $getItems } from '@/server/db/queries/items';
+import { $countItems, $createItems, $getItems, $getItemsPage } from '@/server/db/queries/items';
 import { $getList } from '@/server/db/queries/lists';
 import { $createItemMedia } from '@/server/db/queries/media';
 import { $createTags, $getTags } from '@/server/db/queries/tags';
@@ -6,6 +6,7 @@ import { $validateAuthCookies } from '@/server/utils/auth/cookies';
 import $parseItemForm from '@/server/utils/lib/form/parseItemForm';
 import { $generateShortID } from '@/server/utils/lib/generateID';
 import { validateShortID } from '@/utils/lib/generateID';
+import { hasItemsFilters, ItemsFilters, ItemsPage, ITEMS_PAGE_SIZE } from '@/utils/lib/itemsPagination';
 import { TagData } from '@/utils/types/global';
 import { ItemSaveResponse } from '@/utils/types/item';
 import { ListData } from '@/utils/types/list';
@@ -14,7 +15,10 @@ import { ApiErrorCode } from '@/utils/types/serverResponse';
 import type { NextApiRequest, NextApiResponse } from 'next';
 
 /** api/lists/[id]/items
- * Get: Get all items of a list
+ * Get: Get all items of a list (title ordered)
+ *  - filters: `q` (title search), `tags` (comma separated tag ids, item must have all), `fav=true`
+ *  - pagination: pass `limit` (1-100) and/or `cursor` to get `ItemsPage` ({ items, nextCursor, total }),
+ *    without them a plain array of all the matching items is returned (backward compatible)
  * Post: creates an item in the list
  */
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -30,8 +34,27 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const list = listsDb[0];
 
         if (req.method === 'GET') {
-            const items = await $getItems(user.id, list.id)
-            return res.status(200).json(items);
+            const query = parseGetQuery(req.query)
+            if (!query) return res.status(400).json({ errorCode: ApiErrorCode.BAD_REQUEST });
+            const { limit, after, filters, paginated } = query
+
+            // backward compatibility: without `limit` / `cursor` all the (filtered) items are returned as a plain array
+            if (!paginated) {
+                const items = hasItemsFilters(filters)
+                    ? await $getItemsPage(user.id, list.id, { filters })
+                    : await $getItems(user.id, list.id)
+                return res.status(200).json(items);
+            }
+
+            const [rows, total] = await Promise.all([
+                $getItemsPage(user.id, list.id, { limit, after, filters }),
+                $countItems(user.id, list.id, filters),
+            ])
+            const items = rows.slice(0, limit)
+            const last = items[items.length - 1]
+            const nextCursor = rows.length > limit && last ? encodeCursor(last) : null
+
+            return res.status(200).json({ items, nextCursor, total } as ItemsPage);
         }
 
         if (req.method === 'POST') {
@@ -98,6 +121,69 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     } catch (error) {
         console.log("[Error] api/lists/[id]/items: ", error)
         res.status(500).json({ errorCode: ApiErrorCode.INTERNAL_SERVER_ERROR })
+    }
+}
+
+const MAX_TAGS_FILTER = 50
+
+/** cursor = base64url of the JSON [title, id] of the last item of the previous page */
+const encodeCursor = (item: { title: string, id: string }) =>
+    Buffer.from(JSON.stringify([item.title, item.id])).toString('base64url')
+
+function decodeCursor(cursor: string) {
+    try {
+        const value = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8'))
+        if (!Array.isArray(value) || value.length !== 2) return null
+        const [title, id] = value
+        if (typeof title !== 'string' || typeof id !== 'string' || !validateShortID(id)) return null
+        return { title, id }
+    } catch {
+        return null
+    }
+}
+
+/** GET params: `limit` (1-100, default 100), `cursor`, `q`, `tags` (comma separated ids), `fav=true`
+ * @returns null if any param is invalid */
+function parseGetQuery(query: NextApiRequest['query']) {
+    const single = (key: string) => {
+        const value = query[key]
+        return Array.isArray(value) ? value[value.length - 1] : value
+    }
+    const limitParam = single('limit')
+    const cursorParam = single('cursor')
+    const q = single('q')?.trim()
+    const tagsParam = single('tags')
+    const favParam = single('fav')
+
+    let limit = ITEMS_PAGE_SIZE
+    if (limitParam !== undefined && limitParam !== '') {
+        if (!/^\d+$/.test(limitParam)) return null
+        limit = Math.min(Number(limitParam), ITEMS_PAGE_SIZE)
+        if (limit < 1) return null
+    }
+
+    let after: ReturnType<typeof decodeCursor> = null
+    if (cursorParam) {
+        after = decodeCursor(cursorParam)
+        if (!after) return null
+    }
+
+    const tags = tagsParam ? tagsParam.split(',').map(tag => tag.trim()).filter(Boolean) : []
+    if (tags.length > MAX_TAGS_FILTER || tags.some(tag => tag.length > 100)) return null
+    if (q && q.length > 500) return null
+    if (favParam !== undefined && favParam !== 'true' && favParam !== 'false') return null
+
+    const filters: ItemsFilters = {
+        q: q || undefined,
+        tags: tags.length ? [...new Set(tags)] : undefined,
+        fav: favParam === 'true' || undefined,
+    }
+
+    return {
+        limit,
+        after,
+        filters,
+        paginated: limitParam !== undefined || cursorParam !== undefined,
     }
 }
 

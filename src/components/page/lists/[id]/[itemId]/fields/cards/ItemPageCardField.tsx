@@ -112,7 +112,7 @@ function ProfileCard({
                     />}
                 <div className="flex-grow grid items-start gap-y-1">
                     <h1 className="text-pure-opposite/80 font-bold text-large">{title}</h1>
-                    <p className="text-tiny text-white/60 uppercase font-bold">{subText}</p>
+                    <p className="text-tiny text-pure-opposite/60 uppercase font-bold">{subText}</p>
                 </div>
             </CardBody>
             <Image

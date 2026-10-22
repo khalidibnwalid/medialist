@@ -82,9 +82,11 @@ const config: Config = {
         light: {
           colors: {
             background: '#e7e7e7',
-            foreground: '#151515',
+            // objects (not plain strings): heroui deep-merges them with its base palette, a string would
+            // replace the whole scale and leave foreground-50..900 / default-50..900 / default-foreground undefined
+            foreground: { DEFAULT: '#151515' },
             accented: "#f7f7f7",
-            default: '#fff',
+            default: { DEFAULT: '#fff' },
             pure: { opposite: "#000", theme: '#fff' }, //opposite of theme, i.e for light is pure black and vicevirsa
           }
         },

@@ -26,7 +26,7 @@ export default function ListPageTagsList() {
                     animate={{ opacity: 100 }}
                     exit={{ opacity: 0 }}
                 >
-                    <div className="p-3 grid grid-cols-1 gap-y-2 opacity-80 hover:opacity-100 md:opacity-100 bg-accented shadow-md duration-300">
+                    <div className="p-3 grid grid-cols-1 gap-y-2 opacity-80 [.light_&]:opacity-100 hover:opacity-100 md:opacity-100 bg-accented shadow-md duration-300">
                         <ListPageTagsSearch
                             setVisibleTags={setVisibleTags}
                             allTags={tags}

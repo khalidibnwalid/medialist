@@ -108,13 +108,15 @@ interface CustomButtonsProps {
 }
 
 const ThemeButton = ({ varient }: CustomButtonsProps) => {
-  const { theme, setTheme } = useTheme();
+  // resolvedTheme: `theme` can be "system", which isn't "dark" even when the page is dark
+  const { resolvedTheme, setTheme } = useTheme();
+  const isDark = resolvedTheme !== "light";
   return (
     <BaseNavButton
       varient={varient}
-      label={theme === "dark" ? "Light (Experimental)" : "Dark"}
-      icon={theme === "dark" ? <RiMoonClearLine /> : <BsSun />}
-      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+      label={isDark ? "Light" : "Dark"}
+      icon={isDark ? <RiMoonClearLine /> : <BsSun />}
+      onClick={() => setTheme(isDark ? "light" : "dark")}
       disableActive
     />
   );

@@ -68,7 +68,7 @@ export default function ConnectAppModal({
                         <div className="flex justify-center">
                             {/* QR always on white so phone cameras can read it in dark mode */}
                             <div
-                                className="bg-white p-3 rounded-2xl size-60 [&>svg]:w-full [&>svg]:h-full"
+                                className="bg-white p-3 rounded-2xl [.light_&]:ring-1 [.light_&]:ring-default-200 size-60 [&>svg]:w-full [&>svg]:h-full"
                                 aria-label={`QR code for ${url}`}
                                 role="img"
                                 dangerouslySetInnerHTML={svg ? { __html: svg } : undefined}

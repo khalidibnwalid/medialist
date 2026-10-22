@@ -40,6 +40,8 @@ export default function UserPage() {
                     base: "data-selected:bg-default",
                     tabList: "p-0 rounded-none bg-transparent",
                     tab: "bg-accented duration-200 data-hover:text-xl  ",
+                    // primary-foreground (white) is unreadable on the light accented tab
+                    tabContent: "[.light_&]:group-data-[selected=true]:text-foreground",
                 }}
                 disableCursorAnimation
             >

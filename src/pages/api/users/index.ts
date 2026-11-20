@@ -1,9 +1,10 @@
 import { db } from '@/server/db';
 import { usersTable } from '@/server/db/schema';
 import { $hashPassword, $verifyPassword } from '@/server/utils/auth/auth';
-import { $setSessionTokenCookie, $validateAuthCookies } from '@/server/utils/auth/cookies';
+import { $setSessionTokenCookie, $validateAuthCookies, $wantsTokenInBody } from '@/server/utils/auth/cookies';
 import { $createSession, $generateSessionToken } from '@/server/utils/auth/session';
 import { $generateShortID } from '@/server/utils/lib/generateID';
+import parseJSONReq from '@/utils/functions/parseJSONReq';
 import { validatePassword, validateUsername } from '@/utils/lib/validate';
 import { ApiErrorCode, ServerResponse, UserErrorCode } from '@/utils/types/serverResponse';
 import { eq } from 'drizzle-orm';
@@ -38,7 +39,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             }
 
             const body = await req.body;
-            const { username: reqUser, password } = JSON.parse(body || {})
+            const { username: reqUser, password } = parseJSONReq(body)
             const username = reqUser?.toLowerCase()
 
             if (!username || !password)
@@ -90,14 +91,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             const session = await $createSession(token, user.id, req.headers['user-agent']);
 
             $setSessionTokenCookie(res, token, session.expiresAt)
-            return res.status(201).json(user)
+            return res.status(201).json($wantsTokenInBody(req) ? { ...user, token } : user)
         }
 
         if (req.method === 'PATCH') {
             const { user } = await $validateAuthCookies(req, res);
             if (!user) return res.status(401).json({});
             const body = await req.body;
-            const { newUsername: reqNewUser, newPassword, oldPassword } = JSON.parse(body || {})
+            const { newUsername: reqNewUser, newPassword, oldPassword } = parseJSONReq(body)
 
             let dbHashNewPassword;
             let dbNewUsernameReq;

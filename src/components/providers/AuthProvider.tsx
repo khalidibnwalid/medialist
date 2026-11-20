@@ -47,7 +47,7 @@ export function useUser() {
 function LoadingAuth() {
     return (
         <div>
-            <div className="absolute w-full h-full flex flex-col items-center justify-center gap-y-4 bg-black z-50 bg-opacity-55 backdrop-blur-lg animate-fade-in">
+            <div className="absolute w-full h-full flex flex-col items-center justify-center gap-y-4 bg-black [.light_&]:bg-white text-foreground z-50 bg-opacity-55 backdrop-blur-lg animate-fade-in">
                 <Spinner
                     aria-label="Checking if you are logged in"
                     size="lg"

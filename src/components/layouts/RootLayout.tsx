@@ -1,4 +1,4 @@
-import { Spinner } from "@heroui/react";
+import { Spinner, useDisclosure } from "@heroui/react";
 import { useTheme } from "next-themes";
 import { Poppins } from "next/font/google";
 import Head from "next/head";
@@ -8,12 +8,14 @@ import {
   BiArrowBack,
   BiCollection,
   BiLogOutCircle,
+  BiMobileAlt,
   BiTrashAlt
 } from "react-icons/bi";
 import { BsSun } from "react-icons/bs";
 import { PiBlueprint } from "react-icons/pi";
 import { RiMoonClearLine, RiUserLine } from "react-icons/ri";
 import { twJoin } from "tailwind-merge";
+import ConnectAppModal from "../features/connect/ConnectAppModal";
 import { useUser } from "../providers/AuthProvider";
 import BaseNavBar from "../ui/bars/nav/BaseNavBar";
 import BaseNavButton, {
@@ -76,6 +78,7 @@ export default function RootLayout({
             items={navItems}
             endContent={
               <>
+                <ConnectAppButton varient="sideLabel" />
                 <ThemeButton varient="sideLabel" />
                 <LogOutButton varient="sideLabel" />
               </>
@@ -105,15 +108,33 @@ interface CustomButtonsProps {
 }
 
 const ThemeButton = ({ varient }: CustomButtonsProps) => {
-  const { theme, setTheme } = useTheme();
+  // resolvedTheme: `theme` can be "system", which isn't "dark" even when the page is dark
+  const { resolvedTheme, setTheme } = useTheme();
+  const isDark = resolvedTheme !== "light";
   return (
     <BaseNavButton
       varient={varient}
-      label={theme === "dark" ? "Light (Experimental)" : "Dark"}
-      icon={theme === "dark" ? <RiMoonClearLine /> : <BsSun />}
-      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+      label={isDark ? "Light" : "Dark"}
+      icon={isDark ? <RiMoonClearLine /> : <BsSun />}
+      onClick={() => setTheme(isDark ? "light" : "dark")}
       disableActive
     />
+  );
+};
+
+const ConnectAppButton = ({ varient }: CustomButtonsProps) => {
+  const { isOpen, onOpen, onOpenChange } = useDisclosure();
+  return (
+    <>
+      <BaseNavButton
+        varient={varient}
+        label="Connect mobile app"
+        icon={<BiMobileAlt />}
+        onClick={onOpen}
+        disableActive
+      />
+      <ConnectAppModal isOpen={isOpen} onOpenChange={onOpenChange} />
+    </>
   );
 };
 

@@ -7,11 +7,12 @@ import {
   listsQueryOptions,
   setupListsCache,
 } from "@/utils/lib/tanquery/listsQuery";
-import { ListData } from "@/utils/types/list";
+import useScrollRestoration from "@/utils/hooks/useScrollRestoration";
 import { Input } from "@heroui/react";
 import { useQuery } from "@tanstack/react-query";
 import Head from "next/head";
-import { useEffect, useState } from "react";
+import { parseAsString, useQueryState } from "nuqs";
+import { useEffect, useMemo } from "react";
 import { BiCollection, BiSearch } from "react-icons/bi";
 
 export default function ListsPage() {
@@ -22,26 +23,24 @@ export default function ListsPage() {
     isSuccess,
   } = useQuery(listsQueryOptions());
 
-  const [visibleLists, setVisibleLists] = useState<ListData[]>([]);
+  // kept in the URL (?q=) so it survives navigating back, reloading and sharing
+  const [search, setSearch] = useQueryState("q", parseAsString.withDefault(""));
+
   useEffect(() => {
-    setVisibleLists(Lists || []);
     if (Lists) setupListsCache(Lists);
   }, [Lists]);
+
+  const visibleLists = useMemo(() => {
+    const value = search.trim().toLowerCase();
+    if (!value || !Lists) return Lists || [];
+    return Lists.filter((list) => list.title.toLowerCase().includes(value));
+  }, [Lists, search]);
+
+  useScrollRestoration(isSuccess);
 
   if (isPending) return <ListsLoading />;
   if (isError || !isSuccess)
     return <ErrorPage message="Failed to Fetch Lists" />;
-
-  function onSearch(e: React.KeyboardEvent<HTMLInputElement>) {
-    if (!Lists) return;
-    const value = (e.target as HTMLInputElement).value.trim().toLowerCase();
-    if (!value) return setVisibleLists(Lists);
-
-    const filtered = Lists.filter((list) =>
-      list.title.toLowerCase().includes(value)
-    );
-    setVisibleLists(filtered);
-  }
 
   return (
     <>
@@ -55,7 +54,10 @@ export default function ListsPage() {
         className="bg-pure-theme p-5 mb-5"
       >
         <Input
-          onKeyUp={onSearch}
+          value={search}
+          onValueChange={(value) => setSearch(value || null)}
+          isClearable
+          onClear={() => setSearch(null)}
           radius="lg"
           placeholder="Type to search..."
           startContent={<BiSearch className="opacity-80" size={20} />}

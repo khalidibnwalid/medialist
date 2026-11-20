@@ -192,5 +192,27 @@ export const itemsMedia = sqliteTable("items_media", {
     index("items_media_user_item_idx").on(table.userId, table.itemId),
 ]);
 
+export type SyncEntity = "lists" | "items" | "tags" | "media";
+
+/** append-only change log, used by the offline sync api (api/sync)
+ * to tell clients which rows changed since a cursor (seq) */
+export const syncChangesTable = sqliteTable("sync_changes", {
+    seq: integer("seq")
+        .primaryKey({ autoIncrement: true }),
+    userId: text("user_id")
+        .notNull(),
+    entity: text("entity")
+        .notNull()
+        .$type<SyncEntity>(),
+    entityId: text("entity_id")
+        .notNull(),
+    createdAt: integer("created_at", {
+        mode: "timestamp_ms"
+    }).notNull()
+        .default(sql`(unixepoch() * 1000)`),
+}, (table) => [
+    index("sync_changes_user_seq_idx").on(table.userId, table.seq),
+]);
+
 export type User = InferSelectModel<typeof usersTable>;
 export type Session = InferSelectModel<typeof sessionsTable>;

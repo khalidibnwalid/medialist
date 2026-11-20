@@ -1,7 +1,7 @@
 import { db } from '@/server/db';
 import { sessionsTable, usersTable } from '@/server/db/schema';
 import { $verifyPassword } from '@/server/utils/auth/auth';
-import { $setSessionTokenCookie, $validateAuthCookies } from '@/server/utils/auth/cookies';
+import { $setSessionTokenCookie, $validateAuthCookies, $wantsTokenInBody } from '@/server/utils/auth/cookies';
 import { $createSession, $generateSessionToken, $invalidateSession } from '@/server/utils/auth/session';
 import parseJSONReq from '@/utils/functions/parseJSONReq';
 import { validatePassword, validateUsername } from '@/utils/lib/validate';
@@ -74,7 +74,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       const session = await $createSession(token, user.id, req.headers['user-agent']);
 
       $setSessionTokenCookie(res, token, session.expiresAt);
-      return res.status(200).json(user);
+      return res.status(200).json($wantsTokenInBody(req) ? { ...user, token } : user);
     }
 
     if (req.method === 'DELETE') {

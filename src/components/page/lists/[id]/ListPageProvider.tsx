@@ -2,46 +2,65 @@ import useLocalStorage from "@/utils/hooks/useLocalStorage";
 import { TagData } from "@/utils/types/global";
 import { ItemData } from "@/utils/types/item";
 import { ListData } from "@/utils/types/list";
-import { Options, parseAsArrayOf, parseAsString, useQueryState } from "nuqs";
+import { parseAsArrayOf, parseAsBoolean, parseAsString, useQueryStates } from "nuqs";
 import { createContext, Dispatch, SetStateAction, useMemo, useState } from "react";
 
 export const ListPageContext = createContext({} as ListPageContext)
+
+/** list page filters, kept in the URL (?q=&tags=&fav=) so they survive navigating back, reloading and sharing */
+export function useListPageFilters() {
+    const [{ q, tags: tagsQuery, fav }, setFilters] = useQueryStates({
+        q: parseAsString.withDefault(''),
+        tags: parseAsArrayOf(parseAsString),
+        fav: parseAsBoolean.withDefault(false),
+    })
+
+    return {
+        q,
+        setQ: (value: string) => setFilters({ q: value || null }),
+        fav,
+        setFav: (value: boolean) => setFilters({ fav: value || null }),
+        /** tags labels */
+        tagsQuery,
+        setTagsQuery: (value: string[] | null | ((old: string[] | null) => string[] | null)) =>
+            setFilters(old => {
+                const next = typeof value === 'function' ? value(old.tags) : value
+                return { tags: next?.length ? next : null }
+            }),
+    }
+}
+
+export type ListPageFilters = ReturnType<typeof useListPageFilters>
+
+/** ids of the tags in the URL, labels that don't exist are kept as is (they won't match any item) */
+export const tagsLabelsToIds = (labels: string[] | null, tags: TagData[]) =>
+    labels?.map(label => tags.find(tag => tag.label === label)?.id || label) || []
 
 export default function ListPageProvider({
     children,
     list,
     items,
-    tags
+    total,
+    tags,
+    filters,
+    pagination,
 }: {
     children: React.ReactNode,
     list: ListData,
+    /** loaded items (already filtered by the server) */
     items: ItemData[],
-    tags: TagData[]
+    /** count of all the items matching the filters */
+    total: number,
+    tags: TagData[],
+    filters: ListPageFilters,
+    pagination: ListPagePagination,
 }) {
-    const [filterSettings, setFilterSettings] = useState<FilterSettings>({
-        fav: false,
-    })
-    const [tagsQuery, setTagsQuery] = useQueryState('tags', parseAsArrayOf(parseAsString))
-
     const [viewMode, setViewMode] = useLocalStorage<ViewMode>('viewMode-' + list.id, 'cards')
     const [showTags, setShowTags] = useState(false)
 
     const badgeableTags = useMemo(() => tags.filter(tag => tag.badgeable), [tags])
-    const tagsQueryIds = tagsQuery?.map(label => tags.find(tag => tag.label === label)?.id) || []
 
-    const visibleItems = useMemo(() => items.filter(isItemUnderFilter), [items, tagsQueryIds, filterSettings])
-
-    function isItemUnderFilter(item: ItemData) {
-        // if Flag is disabled || the rule if enabled
-        const indexItemTags = new Map(item.tags.map(tagId => [tagId, true]))
-        const tagsFlag = tagsQuery === null || tagsQueryIds.every(tagId => tagId && indexItemTags.has(tagId))
-        const searchFlag = !filterSettings.search || item.title.toLowerCase().includes(filterSettings.search)
-        const favFlag = !filterSettings.fav || item.fav
-        // item.tags.some(tagId => tagsQueryIds.has(tagId)) for OR
-        return tagsFlag && searchFlag && favFlag
-    }
-
-    const toggleTagQuery = (tag: TagData) => setTagsQuery(q =>
+    const toggleTagQuery = (tag: TagData) => filters.setTagsQuery(q =>
         q?.includes(tag.label)
             ? q?.length === 1 ? null : q?.filter(tagLabel => tagLabel !== tag.label) //remove
             : q?.concat(tag.label) || [tag.label] //add
@@ -51,46 +70,43 @@ export default function ListPageProvider({
         <ListPageContext.Provider value={{
             list,
             items,
+            visibleItems: items,
+            total,
             viewMode,
             tags,
             setViewMode,
             showTags,
             setShowTags,
-            tagsQuery,
-            setTagsQuery,
-            filterSettings,
-            setFilterSettings,
+            ...filters,
             toggleTagQuery,
             badgeableTags,
-            visibleItems
+            ...pagination,
         }}>
             {children}
         </ListPageContext.Provider>
     )
 }
 
-interface ListPageContext {
+export interface ListPagePagination {
+    hasNextPage: boolean
+    isFetchingNextPage: boolean
+    isFetchNextPageError: boolean
+    fetchNextPage: () => unknown
+}
+
+interface ListPageContext extends ListPageFilters, ListPagePagination {
     list: ListData
     items: ItemData[],
+    /** same as items, filtering is done by the server */
     visibleItems: ItemData[],
+    total: number,
     tags: TagData[]
     viewMode: ViewMode
     setViewMode: Dispatch<SetStateAction<ViewMode>>
     showTags: boolean
     setShowTags: Dispatch<SetStateAction<boolean>>
-    setTagsQuery: <Shallow>(value: string[]
-        | ((old: string[] | null) => string[] | null)
-        | null) => Promise<URLSearchParams>
-    tagsQuery: string[] | null,
-    filterSettings: FilterSettings
-    setFilterSettings: Dispatch<SetStateAction<FilterSettings>>,
     toggleTagQuery: (tag: TagData) => void,
     badgeableTags: TagData[],
-}
-
-interface FilterSettings {
-    search?: string,
-    fav?: boolean
 }
 
 type ViewMode = 'cards' | 'cardsList' | 'list';
